@@ -1,25 +1,17 @@
-# import packages
-import tensorflow as tf
+#导入包
+import tensorflow.compat.v1 as tf
 
 print(tf.__version__)
 import numpy as np
-
-tf.enable_eager_execution()
+tf.executing_eagerly()
 import matplotlib.pyplot as plt
 import os
-from glob import glob
-import scipy.misc
-import numpy as np
-from PIL import Image
-import skimage
-from glob import glob
-import imageio
 
-# processing datas
-datas = glob(os.path.join('/data/img_align_celeba/', '*.jpg'))
+#构造生成器和判别器
+#构造生成器类
+#avatar
 
 
-# implement the generator
 class Generator(tf.keras.Model):
     def __init__(self):
         super(Generator, self).__init__()
@@ -82,7 +74,10 @@ class Generator(tf.keras.Model):
         return output
 
 
-# implement the discriminator
+#构造判别器类
+#avatar
+
+
 class Discriminator(tf.keras.Model):
     def __init__(self, alpha):
         super(Discriminator, self).__init__()
@@ -132,7 +127,7 @@ class Discriminator(tf.keras.Model):
         return out, logits
 
 
-# define parameters
+#设置参数
 z_dim = 100  # 输入噪声维度
 learning_rate = 0.0002
 
@@ -147,18 +142,17 @@ epoch = 10  # 迭代次数
 image_size = 108  # 裁剪图像的大小
 image_shape = [64, 64, 3]
 sample_num = 64  # 测试图像的数量
-
 generator_net = Generator()
 discriminator_net = Discriminator(alpha=alpha)
+#定义代价函数
 
 
-# implement the loss function
 def discriminator_loss(d_logits_real, d_logits_fake, smooth=0.1):
     # 判别器两个代价函数
     # 输入真图片，判断逼近1
     d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_real,
                                                                          labels=tf.ones_like(d_logits_real) * (
-                                                                                 1 - smooth)))
+                                                                                     1 - smooth)))
 
     # 输入假图片，判断逼近0
     d_loss_fake = tf.reduce_mean(
@@ -176,9 +170,16 @@ def generator_loss(d_logits_fake, d_model_fake):
     return g_loss
 
 
+#定义优化器
 global_counter = tf.train.get_or_create_global_step()
 generator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1)
 discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1)
+#处理数据和数据显示
+from glob import glob
+
+# 数据集
+##获取所有图片路径
+datas = glob(os.path.join('data/img_align_celeba/', '*.jpg'))
 
 
 def display_images(dataset, figsize=(4, 4), denomalize=True):
@@ -196,12 +197,21 @@ def display_images(dataset, figsize=(4, 4), denomalize=True):
     plt.show()
 
 
+import scipy.misc
+import numpy as np
+from PIL import Image
+import skimage
+from glob import glob
+import imageio
+
+
 # Helpers for image handling
 def get_image(image_path, image_size, is_crop=True):
     return transform(imread(image_path), image_size, is_crop)
 
 
 def save_images(images, image_path):
+    print('save_images')
     for imgindex in range(images.shape[0]):
         imageio.imsave(image_path + str(imgindex) + '.jpg', images[imgindex])
 
@@ -257,6 +267,7 @@ def convert_to_lower_resolution():
         im_resized.save("cars_train/" + str(i) + '.jpg')
 
 
+#运行模型
 # 生成测试噪声输入
 fake_input_test = tf.random_uniform(shape=(sample_num, z_dim),
                                     minval=-1.0, maxval=1.0, dtype=tf.float32)
@@ -317,11 +328,12 @@ fake_input_test = tf.random_uniform(shape=(9, z_dim),
                                     minval=-1.0, maxval=1.0, dtype=tf.float32)
 generated_samples = generator_net(fake_input_test, is_training=False)
 display_images(generated_samples.numpy())
-
+#增加样本集
 sample_num = 64
 sample_files = datas[0:sample_num]
 sample = [get_image(sample_file, image_size, is_crop=True) for sample_file in sample_files]
 sample_images = np.reshape(np.array(sample).astype(np.float32), [sample_num] + image_shape)
+#增加图像修复代价函数
 
 
 def complete_Inpainting_loss(g_loss, mask, G, images, lam):
@@ -333,6 +345,9 @@ def complete_Inpainting_loss(g_loss, mask, G, images, lam):
     perceptual_loss = g_loss
     complete_loss = contextual_loss + lam * perceptual_loss
     return complete_loss
+
+
+#生成MASK矩阵
 
 
 def generate_Mask(batch_size):
@@ -352,77 +367,81 @@ def generate_Mask(batch_size):
 
     return mask, imask
 
-lam=0.1
-nIndex = 500 #图像的迭代次数
-beta1=0.9
-beta2=0.9
-eps=1e-9
-lr=0.01
-batch_size =64
-sample_mask,sample_imask = generate_Mask(sample_num)
-mask,imask = generate_Mask(batch_size)
-# 生成测试噪声输入
-fake_input_test = tf.random_uniform(shape=(sample_num, z_dim),
-                                 minval=-1.0, maxval=1.0, dtype=tf.float32)
 
-num_batch = (int)(len(datas)/batch_size)
+#运行模型
+if __name__ == '__main__':
+    lam = 0.1
+    nIndex = 500  # 图像的迭代次数
+    beta1 = 0.9
+    beta2 = 0.9
+    eps = 1e-9
+    lr = 0.01
+    batch_size = 64
+    sample_mask, sample_imask = generate_Mask(sample_num)
+    mask, imask = generate_Mask(batch_size)
+    # 生成测试噪声输入
+    fake_input_test = tf.random_uniform(shape=(sample_num, z_dim),
+                                        minval=-1.0, maxval=1.0, dtype=tf.float32)
 
-np.random.shuffle(datas)
-for i in range(num_batch):
-    # 生成以batch为单位的随机噪声
-    fake_input = tf.random_uniform(shape=(batch_size, z_dim),
-                                   minval=-1.0, maxval=1.0, dtype=tf.float32)
+    num_batch = (int)(len(datas) / batch_size)
 
-    # 因为数据过大，采用以batch为单位处理数据集的做法
-    batch_files = datas[i * batch_size:(i + 1) * batch_size]
-    batch = [get_image(batch_file, image_size, is_crop=True) for batch_file in batch_files]
-    batch_images = np.reshape(np.array(batch).astype(np.float32), [batch_size] + image_shape)
+    np.random.shuffle(datas)
+    for i in range(num_batch):
+        # 生成以batch为单位的随机噪声
+        fake_input = tf.random_uniform(shape=(batch_size, z_dim),
+                                       minval=-1.0, maxval=1.0, dtype=tf.float32)
+        print("batch %d" % i)
+        # 因为数据过大，采用以batch为单位处理数据集的做法
+        batch_files = datas[i * batch_size:(i + 1) * batch_size]
+        batch = [get_image(batch_file, image_size, is_crop=True) for batch_file in batch_files]
+        batch_images = np.reshape(np.array(batch).astype(np.float32), [batch_size] + image_shape)
 
-    m = 0
-    v = 0
-    for ii in range(nIndex):
-        with tf.GradientTape(persistent=True) as tape:
-            tape.watch(fake_input)
-            # 运行生成器
-            g_model = generator_net(fake_input, is_training=False)
+        m = 0
+        v = 0
+        for ii in range(nIndex):
+            #print("batch: %d, index: %d" % (i, ii))
+            with tf.GradientTape(persistent=True) as tape:
+                tape.watch(fake_input)
+                # 运行生成器
+                g_model = generator_net(fake_input, is_training=False)
 
-            # 输入假图片运行判别器
-            d_model_fake, d_logits_fake = discriminator_net(g_model, is_training=False)
+                # 输入假图片运行判别器
+                d_model_fake, d_logits_fake = discriminator_net(g_model, is_training=False)
 
-            # 计算生成器的损失
-            gen_loss = generator_loss(d_logits_fake, d_model_fake)
-            complete_loss = complete_Inpainting_loss(gen_loss, mask, g_model, batch_images, lam)
-            g = tape.gradient(target=complete_loss, sources=fake_input)
+                # 计算生成器的损失
+                gen_loss = generator_loss(d_logits_fake, d_model_fake)
+                complete_loss = complete_Inpainting_loss(gen_loss, mask, g_model, batch_images, lam)
+                g = tape.gradient(target=complete_loss, sources=fake_input)
 
-        if ii % 50 == 0:
-            # 生成假图片
-            generated_samples = generator_net(fake_input, is_training=False)
-            # 提取真图片对应假图片的破损部分
-            fake_part = np.multiply(generated_samples, sample_imask)
-            # 破损原图
-            real_part = np.multiply(batch_images, sample_mask)
-            # 通道拼接得到原图
-            inpainting_sample = np.add(fake_part, real_part)
-            plt.subplot(121)
-            plt.xticks([])
-            plt.yticks([])
-            plt.imshow(generated_samples[0].numpy())
-            plt.subplot(122)
-            plt.imshow(inpainting_sample[0])
-            plt.xticks([])
-            plt.yticks([])
+            if ii % 50 == 0:
+                # 生成假图片
+                generated_samples = generator_net(fake_input, is_training=False)
+                # 提取真图片对应假图片的破损部分
+                fake_part = np.multiply(generated_samples, sample_imask)
+                # 破损原图
+                real_part = np.multiply(batch_images, sample_mask)
+                # 通道拼接得到原图
+                inpainting_sample = np.add(fake_part, real_part)
+                plt.subplot(121)
+                plt.xticks([])
+                plt.yticks([])
+                plt.imshow(generated_samples[0].numpy())
+                plt.subplot(122)
+                plt.imshow(inpainting_sample[0])
+                plt.xticks([])
+                plt.yticks([])
 
-            plt.show()
+                plt.show()
 
-        # 对单张图片(fake_input)进行更新
-        m_prev = np.copy(m)
-        v_prev = np.copy(v)
+            # 对单张图片(fake_input)进行更新
+            m_prev = np.copy(m)
+            v_prev = np.copy(v)
 
-        m = beta1 * m_prev + (1 - beta1) * g[0]
-        v = beta2 * v_prev + (1 - beta2) * np.multiply(g[0], g[0])
-        m_hat = m / (1 - beta1 ** (ii + 1))
-        v_hat = v / (1 - beta2 ** (ii + 1))
-        fake_input += - np.true_divide(lr * m_hat, (np.sqrt(v_hat) + eps))
-        fake_input = tf.convert_to_tensor(np.clip(fake_input, -1, 1))
+            m = beta1 * m_prev + (1 - beta1) * g[0]
+            v = beta2 * v_prev + (1 - beta2) * np.multiply(g[0], g[0])
+            m_hat = m / (1 - beta1 ** (ii + 1))
+            v_hat = v / (1 - beta2 ** (ii + 1))
+            fake_input += - np.true_divide(lr * m_hat, (np.sqrt(v_hat) + eps))
+            fake_input = tf.convert_to_tensor(np.clip(fake_input, -1, 1))
 
-    counter += 1
+        counter += 1

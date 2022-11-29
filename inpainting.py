@@ -182,7 +182,7 @@ from glob import glob
 # 数据集
 ##获取所有图片路径
 datas = glob(os.path.join('data/img_align_celeba/', '*.jpg'))
-datas = datas[:100]
+datas = datas[:1000]
 
 
 def display_images(dataset, figsize=(4, 4), denomalize=True):
@@ -388,7 +388,7 @@ if __name__ == '__main__':
                                         minval=-1.0, maxval=1.0, dtype=tf.float32)
     print("test")
     num_batch = (int)(len(datas) / batch_size)
-
+    print("num_batch", num_batch)
     np.random.shuffle(datas)
     for i in range(num_batch):
         # 生成以batch为单位的随机噪声

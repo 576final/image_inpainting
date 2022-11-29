@@ -1,15 +1,17 @@
 #导入包
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 
 print(tf.__version__)
 import numpy as np
-tf.executing_eagerly()
+tf.enable_eager_execution()
 import matplotlib.pyplot as plt
 import os
 
 #构造生成器和判别器
 #构造生成器类
 #avatar
+
+
 
 
 class Generator(tf.keras.Model):
@@ -150,13 +152,13 @@ discriminator_net = Discriminator(alpha=alpha)
 def discriminator_loss(d_logits_real, d_logits_fake, smooth=0.1):
     # 判别器两个代价函数
     # 输入真图片，判断逼近1
-    d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_real,
+    d_loss_real = tf.reduce_mean(input_tensor=tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_real,
                                                                          labels=tf.ones_like(d_logits_real) * (
                                                                                      1 - smooth)))
 
     # 输入假图片，判断逼近0
     d_loss_fake = tf.reduce_mean(
-        tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_fake, labels=tf.zeros_like(d_model_fake)))
+        input_tensor=tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_fake, labels=tf.zeros_like(d_model_fake)))
 
     d_loss = d_loss_real + d_loss_fake
     return d_loss
@@ -166,20 +168,21 @@ def generator_loss(d_logits_fake, d_model_fake):
     # 生成器一个代价函数
     # 输入假图片，迷惑判别器判断逼近1
     g_loss = tf.reduce_mean(
-        tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_fake, labels=tf.ones_like(d_model_fake)))
+        input_tensor=tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_fake, labels=tf.ones_like(d_model_fake)))
     return g_loss
 
 
 #定义优化器
-global_counter = tf.train.get_or_create_global_step()
-generator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1)
-discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1)
+global_counter = tf.compat.v1.train.get_or_create_global_step()
+generator_optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1)
+discriminator_optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1)
 #处理数据和数据显示
 from glob import glob
 
 # 数据集
 ##获取所有图片路径
 datas = glob(os.path.join('data/img_align_celeba/', '*.jpg'))
+datas = datas[:100]
 
 
 def display_images(dataset, figsize=(4, 4), denomalize=True):
@@ -269,7 +272,7 @@ def convert_to_lower_resolution():
 
 #运行模型
 # 生成测试噪声输入
-fake_input_test = tf.random_uniform(shape=(sample_num, z_dim),
+fake_input_test = tf.random.uniform(shape=(sample_num, z_dim),
                                     minval=-1.0, maxval=1.0, dtype=tf.float32)
 
 num_batch = (int)(len(datas) / batch_size)
@@ -279,7 +282,7 @@ for i in range(epoch):
     np.random.shuffle(datas)
     for ii in range(num_batch):
         # 生成以batch为单位的随机噪声
-        fake_input = tf.random_uniform(shape=(batch_size, z_dim),
+        fake_input = tf.random.uniform(shape=(batch_size, z_dim),
                                        minval=-1.0, maxval=1.0, dtype=tf.float32)
 
         # 因为数据过大，采用以batch为单位处理数据集的做法
@@ -324,7 +327,7 @@ for i in range(epoch):
                                                     global_step=global_counter)
 
             counter += 1
-fake_input_test = tf.random_uniform(shape=(9, z_dim),
+fake_input_test = tf.random.uniform(shape=(9, z_dim),
                                     minval=-1.0, maxval=1.0, dtype=tf.float32)
 generated_samples = generator_net(fake_input_test, is_training=False)
 display_images(generated_samples.numpy())
@@ -339,8 +342,8 @@ sample_images = np.reshape(np.array(sample).astype(np.float32), [sample_num] + i
 def complete_Inpainting_loss(g_loss, mask, G, images, lam):
     # 真图片未破损部分与假图片未破损部分的生成损失
     contextual_loss = tf.reduce_sum(
-        tf.contrib.layers.flatten(
-            tf.abs(tf.multiply(mask, G) - tf.multiply(mask, images))), 1)
+        input_tensor=tf.contrib.layers.flatten(
+            tf.abs(tf.multiply(mask, G) - tf.multiply(mask, images))), axis=1)
     # 感知信息损失（保证全局结构性）
     perceptual_loss = g_loss
     complete_loss = contextual_loss + lam * perceptual_loss
@@ -370,6 +373,7 @@ def generate_Mask(batch_size):
 
 #运行模型
 if __name__ == '__main__':
+    print("start")
     lam = 0.1
     nIndex = 500  # 图像的迭代次数
     beta1 = 0.9
@@ -380,15 +384,15 @@ if __name__ == '__main__':
     sample_mask, sample_imask = generate_Mask(sample_num)
     mask, imask = generate_Mask(batch_size)
     # 生成测试噪声输入
-    fake_input_test = tf.random_uniform(shape=(sample_num, z_dim),
+    fake_input_test = tf.random.uniform(shape=(sample_num, z_dim),
                                         minval=-1.0, maxval=1.0, dtype=tf.float32)
-
+    print("test")
     num_batch = (int)(len(datas) / batch_size)
 
     np.random.shuffle(datas)
     for i in range(num_batch):
         # 生成以batch为单位的随机噪声
-        fake_input = tf.random_uniform(shape=(batch_size, z_dim),
+        fake_input = tf.random.uniform(shape=(batch_size, z_dim),
                                        minval=-1.0, maxval=1.0, dtype=tf.float32)
         print("batch %d" % i)
         # 因为数据过大，采用以batch为单位处理数据集的做法
@@ -442,6 +446,6 @@ if __name__ == '__main__':
             m_hat = m / (1 - beta1 ** (ii + 1))
             v_hat = v / (1 - beta2 ** (ii + 1))
             fake_input += - np.true_divide(lr * m_hat, (np.sqrt(v_hat) + eps))
-            fake_input = tf.convert_to_tensor(np.clip(fake_input, -1, 1))
+            fake_input = tf.convert_to_tensor(value=np.clip(fake_input, -1, 1))
 
         counter += 1

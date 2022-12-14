@@ -148,8 +148,7 @@ generator_net = Generator()
 discriminator_net = Discriminator(alpha=alpha)
 
 
-# Define the cost function
-
+# Define the cost functions
 def generator_loss(d_logits_fake, d_model_fake):
     # Generate a cost function for the generator
     # Input fake image, confuse the discriminator to determine the approximation 1
@@ -186,7 +185,7 @@ from glob import glob
 datas = glob(os.path.join('data/img_align_celeba/', '*.jpg'))
 datas = datas[:10000]
 
-
+# Display images function
 def display_images(dataset, figsize=(4, 4), denomalize=True):
     fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, figsize=figsize, )
     for ii, ax in enumerate(axes.flatten()):
@@ -210,7 +209,8 @@ from glob import glob
 import imageio
 
 
-# Helpers for image handling
+# Images handling functions
+# image reader
 def get_image(image_path, image_size, is_crop=True):
     return transform(imread(image_path), image_size, is_crop)
 
@@ -218,13 +218,13 @@ def get_image(image_path, image_size, is_crop=True):
 def imread(path):
     return imageio.imread(path).astype(np.float)
 
-
+# image writer
 def save_images(images, image_path):
     print('save_images')
     for imgindex in range(images.shape[0]):
         imageio.imsave(image_path + str(imgindex) + '.jpg', images[imgindex])
 
-
+# transform images size to (64*64*3)
 def transform(image, npx=64, is_crop=True):
     # npx : # of pixels width/height of image
     if is_crop:
@@ -233,7 +233,7 @@ def transform(image, npx=64, is_crop=True):
         cropped_image = image
     return np.array(cropped_image) / 127.5 - 1.
 
-
+# crop image around center
 def center_crop(x, crop_h, crop_w=None, resize_w=64):
     if crop_w is None:
         crop_w = crop_h
@@ -381,7 +381,7 @@ def generate_Mask(batch_size):
 if __name__ == '__main__':
     print("start")
     lam = 0.1
-    # number of iterations of the image
+    # Parameters for training process
     nIndex = 500
     beta1 = 0.9
     beta2 = 0.9
